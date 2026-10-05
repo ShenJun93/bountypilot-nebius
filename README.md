@@ -1,89 +1,122 @@
 # BountyPilot
 
-BountyPilot is a self-hosted Model Context Protocol server plus a web-based Alexa+ simulation built for the **Amazon Developer Hackathon 2026 — Alexa+ track**.
+**Is this bounty worth building, and is it still open? Answers you can check, quote by quote.**
 
-It turns bounty hunting into a stateful agent workflow instead of a one-shot Q&A:
+BountyPilot is an opportunity triage agent for solo developers who hunt bounties and hackathons.
+Paste a listing and it tells you GO, REVIEW or SKIP, and if the listing has a link it checks the
+source to see whether the opportunity already closed or someone else took it. Your queue is
+remembered across sessions.
 
-1. analyze an opportunity against an async, code-first profile;
-2. save it to a persistent queue;
-3. compare opportunities without hiding blockers;
-4. build a concrete submission plan;
-5. track progress across sessions;
-6. ask for the next best action;
-7. get a daily priority briefing across the active queue.
+Built for the **Nebius × NVIDIA Global AI Hackathon** — *Best Apps and Agents* track.
 
-The simulator invokes the same eight MCP tools through the official SDK using an in-memory MCP transport. The separately exposed `/mcp` route serves the same tool surface over Streamable HTTP for external clients and Alexa+ integration.
+## Why
 
-## The Alexa+ simulation
+Most of the time spent on bounties is not building, it is triage: is it still open, does it need a
+live interview, do I have to be hired first, is someone already working on it. Summaries and
+aggregators go stale — the AnySearch bounty list still reads as open while its linked claim sheet
+shows every project taken, and a $1,500 GitHub bounty looked free until the API showed it was
+assigned. BountyPilot checks the canonical source and shows its evidence.
 
-The web simulator is a multi-turn conversation, not a form:
+## How it uses Nebius Token Factory and NVIDIA Nemotron
 
-- "Alexa, open BountyPilot" — on a returning visit it greets you with your saved pipeline and the next step.
-- Attach a listing and ask "is this worth building?" — it analyzes, saves, and (for SKIP) files the listing as skipped on its own, then tells you what to do next.
-- "What should I work on today?", "What's in my queue?", "Plan my top opportunity", "I submitted it" — each maps to a short chain of MCP tool calls.
+- **Listing extraction.** Each listing is sent to **`nvidia/nemotron-3-super-120b-a12b`** on
+  **Nebius Token Factory** (OpenAI-compatible `/v1/chat/completions`, `response_format: json_schema`).
+  Nemotron returns reward, deadline, live-interview gate, pre-hire gate, unpaid wording, submission
+  path and eligibility — and **each field must carry a quote copied from the listing**.
+- **Every quote is verified.** `src/extractor.js` checks that each quote appears verbatim in the
+  listing (case and whitespace normalized). Fields whose quote is not found are discarded and
+  reported in the card ("2 unquoted fields discarded"). Nemotron cannot invent a fact into a verdict.
+- **The rules stay the guardrail.** A rule engine (`src/analyzer.js`) runs on every listing. A
+  verified Nemotron field may *add* a blocker or fill a missing reward/deadline, but it can never
+  clear a blocker the rules found. Example: the rules do not know that "Finalists present their
+  project on a video call with the judges" is a live gate; Nemotron finds and quotes it, and the
+  verdict becomes SKIP with that sentence in the reply.
+- **Page verdicts.** When a listing page has neither "closed" nor "open" wording the rules can match,
+  Nemotron reads the page and must again quote it; an unquoted answer is ignored and the status stays
+  UNKNOWN.
 
-Replies are read aloud with the browser's built-in speech synthesis (toggle in the header), and results come back as cards: a verdict card, a daily briefing card, a plan card, and a queue carousel. Every turn shows the MCP tool calls it made.
+Measured on the live API (2026-10-05): one triage is a single Token Factory call of ~300 prompt and
+~1.4k completion tokens (most of them reasoning), about 7 seconds end to end.
 
-Intent routing (`src/conversation.js`) is rule-based on purpose: every decision is explainable and the demo needs no paid model API.
+## How it uses Tavily
 
-## Track technology
+`check_liveness` answers "is it still open?" from the canonical source:
 
-- Self-hosted MCP server
-- Streamable HTTP endpoint: `/mcp`
-- MCP TypeScript SDK v2
-- Verified negotiated protocol version: `2026-07-28` (newer than the hackathon minimum `2025-11-25`)
-- Web simulator uses an MCP client over the SDK's in-memory transport; it does not bypass the MCP tool layer
-- Public `/mcp` uses Streamable HTTP and exposes the same eight tools
+| Link | Check |
+|---|---|
+| GitHub issue / PR | GitHub REST API: closed, assignees (ignored on *Help Wanted* issues, where repos like Expensify assign their own staff), linked open pull requests, comment load |
+| Any other page | **Tavily Extract** reads the page; rules look for closed / claimed / open wording and quote the sentence; Nemotron is the quoted fallback. **Tavily Search** looks for related work by title |
 
-## Run
+Statuses: `OPEN`, `CLOSED`, `CLAIMED`, `CONTESTED`, `UNKNOWN`. A page that merely lacks "closed"
+wording is `UNKNOWN`, not `OPEN`. During triage, a listing whose link is `CLOSED` or `CLAIMED` is
+filed as skipped automatically.
+
+## Architecture
+
+```
+browser (public/) ──/api/converse──▶ conversation.js ──MCP client (in-memory)──▶ MCP server (src/mcp.js)
+external MCP clients ──────────── Streamable HTTP /mcp ─────────────────────────▶      9 tools
+                                                                                         │
+            ┌─────────────────────────────┬──────────────────────────────┬───────────────┴──────┐
+            ▼                             ▼                              ▼                      ▼
+  extractor.js → Token Factory   liveness.js → GitHub API, Tavily   analyzer.js (rules)   store.js → Redis / file
+  (Nemotron, JSON schema)        (+ Nemotron quoted fallback)
+```
+
+The web page is an ordinary MCP client: every answer comes from MCP tool calls, which each turn lists.
+
+### MCP tools
+
+`analyze_opportunity`, `save_opportunity`, `check_liveness`, `get_opportunity_queue`,
+`compare_opportunities`, `build_submission_plan`, `set_opportunity_status`, `daily_briefing`,
+`next_best_action`.
+
+## Run locally
+
+Requires Node.js 22+.
 
 ```bash
 npm install
-npm start
+cp .env.example .env   # add NEBIUS_API_KEY and TAVILY_API_KEY
+npm start              # http://127.0.0.1:4310, MCP at /mcp
 ```
 
-Open `http://127.0.0.1:4310`.
-
-## Verify MCP
-
-With the server running:
+Every key is optional. Without `NEBIUS_API_KEY` the app uses the rule engine and the header shows
+"Nemotron · off"; without `TAVILY_API_KEY` only GitHub links are checked.
 
 ```bash
-npm run smoke
+npm test        # 35 tests, no network or keys needed (providers are faked)
+npm run smoke   # with the server running: real MCP handshake, all 9 tools present
 ```
 
-The smoke client performs a real initialize handshake, requires the full eight-tool surface, calls `analyze_opportunity` and `daily_briefing`, and exits non-zero if protocol/tool/runtime checks fail.
+### Configuration
 
-## Tools
-
-- `analyze_opportunity`
-- `save_opportunity`
-- `get_opportunity_queue`
-- `compare_opportunities`
-- `build_submission_plan`
-- `set_opportunity_status`
-- `daily_briefing`
-- `next_best_action`
-
-## State
-
-Each browser gets its own workspace id (kept in `localStorage`), so visitors never see each other's queue. External MCP clients pass an optional `workspace` argument; without it they use `default`.
-
-Storage is chosen from the environment, in this order:
-
-| Environment | Storage | Survives restarts |
+| Variable | Default | Purpose |
 |---|---|---|
-| `UPSTASH_REDIS_REST_URL` + `UPSTASH_REDIS_REST_TOKEN`, or the Vercel Upstash integration's `…KV_REST_API_URL` + `…KV_REST_API_TOKEN` (any prefix, e.g. `kv_KV_REST_API_URL`) | Redis over REST | yes |
-| `BOUNTYPILOT_STATE=/path/state.json` | that file | yes |
-| running on Vercel with neither | function `/tmp` | no — may reset on a cold start |
-| local default | `data/state.json` (ignored by Git) | yes |
+| `NEBIUS_API_KEY` | — | Nebius Token Factory key |
+| `NEBIUS_MODEL` | `nvidia/nemotron-3-super-120b-a12b` | any Token Factory model id |
+| `TAVILY_API_KEY` | — | Tavily key |
+| `GITHUB_TOKEN` | — | raises the GitHub API rate limit |
+| `UPSTASH_REDIS_REST_URL` / `_TOKEN` | — | durable queue (otherwise a local JSON file) |
+| `BOUNTYPILOT_REDIS_PREFIX` | `bountypilot:ws:` | Redis key prefix |
+| `NEBIUS_DAILY_CALLS` / `TAVILY_DAILY_CALLS` | 300 / 150 | per-instance daily budget; past it the app falls back to rules |
+| `RATE_LIMIT_PER_10_MIN` | 40 | requests per IP per 10 minutes on `/api/converse` and `/mcp` |
 
-`GET /health` reports which one is active, and the simulator shows it in the header. Files written by v0.1 (a single top-level queue) are read as the `default` workspace.
+## Honest limits
 
-## Privacy and cost
+- Liveness can only see what the linked page says. If claim status lives elsewhere (a Google Sheet,
+  a Discord), the answer is `UNKNOWN` and says so.
+- Nemotron's answers vary between runs; the quote check means a run can return fewer fields, never
+  invented ones.
+- Intent routing in the conversation is rule-based on purpose, so every step is explainable.
 
-The current proof of concept uses no paid model API and sends no listing text to a third-party model. State is local to the self-hosted server.
+## Origin
+
+BountyPilot started on 2026-09-29 as a rule-based MCP server for the Amazon Alexa+ hackathon
+(`ShenJun93/bountypilot-amazon-2026`). Everything model- and Tavily-related here — Nemotron
+extraction with quote verification, `check_liveness`, the evidence UI, budgets — was built during
+this hackathon's submission period. Built with AI coding agents; every change was reviewed and tested.
 
 ## License
 
-MIT.
+MIT

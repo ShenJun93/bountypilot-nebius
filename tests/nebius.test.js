@@ -188,3 +188,17 @@ test('"is it still open?" checks the saved listing URL',async()=>{
   assert.equal(out.intent,'liveness');
   assert.match(out.reply,/^.*open\./);
 });
+
+test('the daily budget stops calls past the limit and resets the next day',async()=>{
+  const {dailyBudget}=await import('../src/guard.js');
+  let t=Date.parse('2026-10-06T10:00:00Z');
+  let calls=0;
+  const llm=dailyBudget({name:'nebius-token-factory',model:'m',chatJSON:async()=>{calls+=1;return {data:{}};}},2,()=>t);
+  await llm.chatJSON({});
+  await llm.chatJSON({});
+  await assert.rejects(llm.chatJSON({}),/budget of 2/);
+  t+=24*3600*1000;
+  await llm.chatJSON({});
+  assert.equal(calls,3);
+  assert.equal(llm.model,'m');
+});

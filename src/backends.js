@@ -101,7 +101,7 @@ function redisRestCredentials(env) {
 
 export function backendFromEnv(env,{defaultFile,isVercel,tmpFile}) {
   const redis=redisRestCredentials(env);
-  if (redis) return new RedisRestBackend(redis);
+  if (redis) return new RedisRestBackend({...redis,prefix:env.BOUNTYPILOT_REDIS_PREFIX || 'bountypilot:ws:'});
   if (env.BOUNTYPILOT_STATE) return new FileBackend(env.BOUNTYPILOT_STATE);
   if (isVercel) return new FileBackend(tmpFile,{kind:'ephemeral-vercel-tmp'});
   return new FileBackend(defaultFile);

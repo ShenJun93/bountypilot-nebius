@@ -10,6 +10,7 @@ import {assertWorkspace, backendFromEnv} from './src/backends.js';
 import {buildMcpServer, createBountyPilotHandler} from './src/mcp.js';
 import {converse} from './src/conversation.js';
 import {nebiusFromEnv, tavilyFromEnv} from './src/providers.js';
+import {dailyBudget, rateLimit} from './src/guard.js';
 
 const root=fileURLToPath(new URL('.',import.meta.url));
 const port=Number(process.env.PORT || 4310);
@@ -22,10 +23,11 @@ const backend=backendFromEnv(process.env,{
 });
 const store=new OpportunityStore(backend);
 const providers={
-  llm:nebiusFromEnv(process.env),
-  tavily:tavilyFromEnv(process.env),
+  llm:dailyBudget(nebiusFromEnv(process.env),Number(process.env.NEBIUS_DAILY_CALLS ?? 300)),
+  tavily:dailyBudget(tavilyFromEnv(process.env),Number(process.env.TAVILY_DAILY_CALLS ?? 150)),
   githubToken:process.env.GITHUB_TOKEN || null
 };
+const limiter=rateLimit({max:Number(process.env.RATE_LIMIT_PER_10_MIN ?? 40)});
 const engines={
   extractor:providers.llm ? `nemotron (${providers.llm.model}) via Nebius Token Factory` : 'rules only (NEBIUS_API_KEY not set)',
   liveness:['github-api',...(providers.tavily ? ['tavily'] : [])]
@@ -65,7 +67,7 @@ function workspaceFrom(value) {
 const app=express();
 
 // Keep the public Streamable HTTP MCP route ahead of body-parsing middleware.
-app.all('/mcp',async (req,res)=>{
+app.all('/mcp',limiter,async (req,res)=>{
   try {
     await mcpNodeHandler(req,res);
   } catch (error) {
@@ -77,7 +79,7 @@ app.all('/mcp',async (req,res)=>{
 
 app.use(express.json({limit:'256kb'}));
 
-app.post('/api/converse',async (req,res,next)=>{
+app.post('/api/converse',limiter,async (req,res,next)=>{
   try {
     const body=req.body ?? {};
     res.json(await converse({

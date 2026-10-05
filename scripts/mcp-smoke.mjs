@@ -9,11 +9,12 @@ const expectedTools=[
   'build_submission_plan',
   'set_opportunity_status',
   'daily_briefing',
-  'next_best_action'
+  'next_best_action',
+  'check_liveness'
 ].sort();
 
 const client=new Client(
-  {name:'bountypilot-smoke',version:'0.2.0'},
+  {name:'bountypilot-smoke',version:'0.3.0'},
   {versionNegotiation:{mode:'auto'}}
 );
 const transport=new StreamableHTTPClientTransport(new URL(`${base}/mcp`));
