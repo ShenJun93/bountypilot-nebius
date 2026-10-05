@@ -6,3 +6,4 @@ data/state.json
 .DS_Store
 
 .vercel
+.env*
