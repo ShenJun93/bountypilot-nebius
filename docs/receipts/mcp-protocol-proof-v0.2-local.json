@@ -1,0 +1,22 @@
+{
+  "schema": "mcp-protocol-proof/v1",
+  "endpoint": "http://127.0.0.1:4310/mcp",
+  "minimumProtocol": "2025-11-25",
+  "timeoutMs": 5000,
+  "protocolVersion": "2026-07-28",
+  "protocolEra": "modern",
+  "versionPass": true,
+  "toolCount": 8,
+  "tools": [
+    "analyze_opportunity",
+    "build_submission_plan",
+    "compare_opportunities",
+    "daily_briefing",
+    "get_opportunity_queue",
+    "next_best_action",
+    "save_opportunity",
+    "set_opportunity_status"
+  ],
+  "missingTools": [],
+  "pass": true
+}

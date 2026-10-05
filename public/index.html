@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="BountyPilot — an opportunity triage agent: NVIDIA Nemotron on Nebius Token Factory reads listings, Tavily checks they are still open, and every claim is quoted.">
+  <title>BountyPilot — Nemotron triage agent</title>
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <main class="shell">
+    <header class="topbar">
+      <div class="brand">
+        <span class="orb" aria-hidden="true"></span>
+        <div>
+          <strong>BountyPilot</strong>
+          <span>Nemotron · Nebius Token Factory · MCP</span>
+        </div>
+      </div>
+      <div class="badges">
+        <span class="runtime" id="engineBadge" title="Which engine reads listings">Nemotron · checking</span>
+        <span class="runtime" id="storageBadge" title="Where your queue is stored">State · checking</span>
+        <span class="runtime" id="runtimeBadge">MCP · waiting</span>
+        <button class="runtime toggle" id="voiceToggle" type="button" aria-pressed="true">Voice replies · on</button>
+      </div>
+    </header>
+
+    <section class="hero compact">
+      <p class="eyebrow">NEBIUS × NVIDIA GLOBAL AI HACKATHON · BEST APPS AND AGENTS</p>
+      <h1>Is it worth it, and is it still open?<br><span>Answers you can check, quote by quote.</span></h1>
+      <p class="lede">Paste a bounty or hackathon listing. NVIDIA Nemotron on Nebius Token Factory reads it and must quote the listing for every fact it reports; quotes that are not in the text are thrown away. If the listing has a link, BountyPilot checks the source — the GitHub issue or the live page via Tavily — to see whether it already closed or someone else took it. Your queue is remembered across sessions.</p>
+    </section>
+
+    <section class="grid">
+      <article class="panel device" aria-label="Conversation with BountyPilot">
+        <div class="panel-head">
+          <div>
+            <span class="kicker">01 · Conversation</span>
+            <h2>“Is this worth building?”</h2>
+          </div>
+          <button class="quiet" id="newSessionButton" type="button" title="Clear the conversation but keep your saved queue">New session</button>
+        </div>
+
+        <div class="transcript" id="transcript" aria-live="polite"></div>
+
+        <form class="composer" id="composer">
+          <div class="chips" aria-label="Suggested requests">
+            <button type="button" data-say="Open BountyPilot">Open BountyPilot</button>
+            <button type="button" data-say="Is it still open?">Is it still open?</button>
+            <button type="button" data-say="What should I work on today?">What should I work on today?</button>
+            <button type="button" data-say="What's in my queue?">What's in my queue?</button>
+            <button type="button" data-say="Plan my top opportunity">Plan my top opportunity</button>
+            <button type="button" data-say="I submitted it">I submitted it</button>
+          </div>
+          <div class="chips listing-chips" aria-label="Attach a sample listing">
+            <span>Ask about a listing:</span>
+            <button type="button" data-sample="go">Async hackathon</button>
+            <button type="button" data-sample="review">Pre-hire bounty</button>
+            <button type="button" data-sample="skip">Live interview</button>
+            <button type="button" data-sample="hidden">Hidden live gate</button>
+            <button type="button" data-sample="github">Real GitHub bounty</button>
+            <button type="button" id="ownListingButton">Paste your own</button>
+          </div>
+
+          <div class="attachment hidden" id="attachment">
+            <div class="attachment-head">
+              <strong id="attachmentTitle">Listing</strong>
+              <button type="button" class="quiet" id="removeAttachment">Remove</button>
+            </div>
+            <input id="listingTitle" placeholder="Title" autocomplete="off">
+            <textarea id="listingText" rows="5" placeholder="Paste the bounty or hackathon listing text"></textarea>
+          </div>
+
+          <div class="say">
+            <input id="utterance" placeholder="Say something to BountyPilot…" autocomplete="off">
+            <button class="primary" id="sendButton" type="submit">Ask</button>
+          </div>
+        </form>
+      </article>
+
+      <aside class="panel side">
+        <div class="panel-head">
+          <div>
+            <span class="kicker">02 · Persistent context</span>
+            <h2>Your opportunity queue</h2>
+          </div>
+          <button class="quiet" id="refreshQueueButton" type="button">Refresh</button>
+        </div>
+        <div id="queue" class="queue">
+          <p class="queue-empty">Nothing saved yet.</p>
+        </div>
+        <div class="workspace">
+          <p>Your queue is private to this browser (workspace <code id="workspaceId">—</code>). Close the tab and come back later: BountyPilot will greet you with where you left off.</p>
+          <button class="quiet" id="resetButton" type="button">Clear my queue</button>
+        </div>
+      </aside>
+    </section>
+
+    <footer>
+      <span>Self-hosted MCP · Streamable HTTP · 9 tools</span>
+      <span>Nemotron reads · rules guard · every claim quoted</span>
+    </footer>
+  </main>
+
+  <script type="module" src="./app.js"></script>
+</body>
+</html>

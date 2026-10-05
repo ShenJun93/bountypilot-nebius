@@ -1,0 +1,28 @@
+{
+  "schema": "mcp-protocol-proof/v1",
+  "captured_at_local_date": "2026-10-05",
+  "purpose": "pre-promotion production baseline",
+  "candidate_expected_tool_count": 8,
+  "endpoint": "https://bountypilot-amazon-2026.vercel.app/mcp",
+  "minimumProtocol": "2025-11-25",
+  "timeoutMs": 10000,
+  "protocolVersion": "2026-07-28",
+  "protocolEra": "modern",
+  "versionPass": true,
+  "toolCount": 7,
+  "tools": [
+    "analyze_opportunity",
+    "build_submission_plan",
+    "compare_opportunities",
+    "get_opportunity_queue",
+    "next_best_action",
+    "save_opportunity",
+    "set_opportunity_status"
+  ],
+  "missingTools": [
+    "daily_briefing"
+  ],
+  "pass": false,
+  "expected_exit_code": 2,
+  "verifier_candidate_commit": "411869d9d57604fbb26119ff6002f392326920f6"
+}

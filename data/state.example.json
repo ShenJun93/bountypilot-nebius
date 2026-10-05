@@ -1,0 +1,15 @@
+{
+  "workspaces": {
+    "default": {
+      "profile": {
+        "name": "Solo Builder",
+        "constraints": [
+          "Prefer async code-submit workflows",
+          "Avoid mandatory interviews and live assessments",
+          "Prioritize near-term cashflow"
+        ]
+      },
+      "opportunities": []
+    }
+  }
+}
