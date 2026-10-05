@@ -49,11 +49,13 @@ function evidence(text, patterns) {
   for (const pattern of patterns) {
     const match = text.match(pattern);
     if (!match) continue;
+    // Widen the window to whole words so a snippet never starts or ends mid-word.
     const index = match.index ?? 0;
-    return text
-      .slice(Math.max(0, index - 45), Math.min(text.length, index + match[0].length + 70))
-      .replace(/\s+/g, ' ')
-      .trim();
+    let start = Math.max(0, index - 45);
+    let end = Math.min(text.length, index + match[0].length + 70);
+    while (start > 0 && /\S/.test(text[start - 1])) start -= 1;
+    while (end < text.length && /\S/.test(text[end])) end += 1;
+    return text.slice(start, end).replace(/\s+/g, ' ').trim();
   }
   return null;
 }
@@ -173,9 +175,11 @@ export function analyzeOpportunity({title='', listing=''}, extraction=null) {
   else if (!signals.preHireGate && signals.codeSubmission && score>=72) verdict='GO';
 
   const extractedEvidence=[];
+  // A verified model quote is an exact sentence from the listing, so it reads better than
+  // the rules' fixed-width window; the rules' snippet is the fallback.
   const cite=(label,ruleValue,modelField)=>{
-    if (ruleValue) extractedEvidence.push({label,value:ruleValue,source:'rules'});
-    else if (modelField?.quote) extractedEvidence.push({label,value:modelField.quote,source:'nemotron'});
+    if (modelField?.quote) extractedEvidence.push({label,value:modelField.quote,source:'nemotron'});
+    else if (ruleValue) extractedEvidence.push({label,value:ruleValue,source:'rules'});
   };
   cite('Reward',ruleReward?.text,model.reward);
   cite('Deadline',ruleDeadline,model.deadline);

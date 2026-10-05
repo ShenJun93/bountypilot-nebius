@@ -140,9 +140,17 @@ test('page liveness uses Tavily text and ignores a model quote that is not on th
 
   const filler='Build an agent that helps teams ship faster. '.repeat(10);
   const lying=fakeLlm({status:'CLOSED',quote:'This program has been discontinued'});
-  const open=await checkLiveness({url:'https://example.com/b2',title:'B2'},{tavily:page(filler),llm:lying});
+  const silent=await checkLiveness({url:'https://example.com/b2',title:'B2'},{tavily:page(filler),llm:lying});
+  assert.equal(silent.status,'UNKNOWN','no quote either way is not evidence of open');
+  assert.equal(silent.competition.length,1);
+
+  const open=await checkLiveness({url:'https://example.com/b4'},{tavily:page('Life After Code. Registration is now open. Submissions open on October 5th.')});
   assert.equal(open.status,'OPEN');
-  assert.equal(open.competition.length,1);
+  assert.match(open.evidence[0].quote,/Registration is now open/);
+
+  const honest=fakeLlm({status:'OPEN',quote:'We are accepting entries until the 30th'});
+  const byModel=await checkLiveness({url:'https://example.com/b5'},{tavily:page(`${filler} We are accepting entries until the 30th. ${filler}`),llm:honest});
+  assert.equal(byModel.status,'OPEN');
 
   const none=await checkLiveness({url:'https://example.com/b3'},{});
   assert.equal(none.status,'UNKNOWN');

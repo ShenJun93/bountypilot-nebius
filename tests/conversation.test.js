@@ -45,7 +45,7 @@ test('a GO listing is analyzed, saved and followed by a next action',async()=>{
   const out=await converse({utterance:'Is this worth building?',title:'Build With AI',listing:GO,workspace:'w1'},call);
   assert.equal(out.intent,'triage');
   assert.equal(out.cards[0].verdict,'GO');
-  assert.deepEqual(out.trace.map((t)=>t.tool),['analyze_opportunity','save_opportunity','next_best_action']);
+  assert.deepEqual(out.trace.map((t)=>t.tool),['save_opportunity','next_best_action']);
   assert.match(out.reply,/That one fits/);
   assert.equal((await store.forWorkspace('w1').list()).length,1);
 });

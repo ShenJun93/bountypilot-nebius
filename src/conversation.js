@@ -97,8 +97,9 @@ export async function converse({utterance='',title='',listing='',workspace='defa
     const name=title.trim() || listing.trim().split(/[.\n]/)[0].slice(0,80) || 'Untitled opportunity';
     const sourceUrl=listing.match(URL_IN_TEXT)?.[0]?.replace(/[.,;:]+$/,'');
     const urlArg=sourceUrl ? {sourceUrl} : {};
-    const analysis=data(await noWorkspace('analyze_opportunity',{title:name,listing,...urlArg})).analysis;
+    // save_opportunity analyzes once and returns the analysis, so Nemotron reads the listing a single time.
     const saved=data(await call('save_opportunity',{title:name,listing,...urlArg}));
+    const analysis=saved.analysis;
     cards.push(opportunityCard(analysis));
     const reward=analysis.reward?.text ?? 'no stated reward';
     const deadline=analysis.deadline ? `the deadline is ${analysis.deadline}` : 'no deadline is stated';
@@ -115,7 +116,9 @@ export async function converse({utterance='',title='',listing='',workspace='defa
 
     if (analysis.verdict==='SKIP') {
       await call('set_opportunity_status',{id:saved.id,status:'skipped'});
-      reply=`I'd skip this one. ${analysis.reasons[0] ?? ''} I saved it as skipped so it won't come back as a suggestion.`;
+      const gate=analysis.evidence?.find((e)=>e.label==='Live gate' || e.label==='Unpaid');
+      const because=gate ? `The listing says: "${gate.value}"` : (analysis.reasons[0] ?? '');
+      reply=`I'd skip this one. ${because} I saved it as skipped so it won't come back as a suggestion.`;
     } else {
       const next=data(await call('next_best_action'));
       if (analysis.verdict==='GO') {

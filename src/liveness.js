@@ -12,6 +12,12 @@ const CLOSED_PATTERNS=[
   /registration (?:is )?closed/i,
   /\bpaused\b/i
 ];
+const OPEN_PATTERNS=[
+  /registration is (?:now )?open/i,
+  /(?:now )?accepting (?:submissions|applications|entries|proposals)/i,
+  /submissions? (?:are|is) (?:now )?open/i,
+  /applications? (?:are|is) (?:now )?open/i
+];
 const CLAIMED_PATTERNS=[
   /\b(?:already )?claimed\b/i,
   /\bassigned to\b/i,
@@ -20,9 +26,16 @@ const CLAIMED_PATTERNS=[
 
 export const URL_IN_TEXT=/https?:\/\/[^\s<>"')\]]+/i;
 
+// Quote the sentence around a match, falling back to a word-aligned window.
 function quoteAround(text,match) {
   const i=match.index ?? 0;
-  return text.slice(Math.max(0,i-80),i+match[0].length+80).replace(/\s+/g,' ').trim();
+  const before=text.lastIndexOf('.',i-1);
+  let start=before>=0 && i-before<200 ? before+1 : Math.max(0,i-80);
+  const after=text.indexOf('.',i+match[0].length);
+  let end=after>=0 && after-i<240 ? after+1 : Math.min(text.length,i+match[0].length+80);
+  while (start>0 && /\S/.test(text[start-1])) start-=1;
+  while (end<text.length && /\S/.test(text[end])) end+=1;
+  return text.slice(start,end).replace(/\s+/g,' ').trim();
 }
 
 async function githubJson(fetchImpl,path,token) {
@@ -88,7 +101,8 @@ async function checkPage(url,title,{tavily,llm}) {
   const evidence=[];
   let status='UNKNOWN';
 
-  for (const [label,patterns] of [['CLOSED',CLOSED_PATTERNS],['CLAIMED',CLAIMED_PATTERNS]]) {
+  // Closed and claimed wording wins over open wording found elsewhere on the same page.
+  for (const [label,patterns] of [['CLOSED',CLOSED_PATTERNS],['CLAIMED',CLAIMED_PATTERNS],['OPEN',OPEN_PATTERNS]]) {
     for (const p of patterns) {
       const m=text.match(p);
       if (m && status==='UNKNOWN') {
@@ -113,10 +127,7 @@ async function checkPage(url,title,{tavily,llm}) {
       evidence.push({source:page.url,quote:data.quote.trim(),by:'nemotron'});
     }
   }
-  if (status==='UNKNOWN' && text.length) {
-    status='OPEN';
-    evidence.push({source:page.url,quote:'The page loads and shows no closed, ended or claimed wording.'});
-  }
+  // No quote, no claim: a page that merely lacks "closed" wording is not evidence that it is open.
 
   let competition=[];
   if (title) {
@@ -125,10 +136,10 @@ async function checkPage(url,title,{tavily,llm}) {
       .filter((r)=>r.url!==url);
   }
   const summaries={
-    OPEN:'The listing page shows no sign that it has closed or been claimed.',
+    OPEN:'The listing page says it is open.',
     CLOSED:'The listing page says it is closed.',
     CLAIMED:'The listing page says someone has already claimed it.',
-    UNKNOWN:'I could not tell from the page whether it is still open.'
+    UNKNOWN:'The page neither says it is open nor that it closed, so check it by hand. Claim status may live on another page, such as a linked sheet.'
   };
   return {status,summary:summaries[status],evidence,competition,checks};
 }

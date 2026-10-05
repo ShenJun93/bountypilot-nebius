@@ -37,7 +37,8 @@ export function nebiusFromEnv(env=process.env,fetchImpl=fetch) {
       const body={
         model,
         temperature:0,
-        max_tokens:1500,
+        // Nemotron spends most of its budget on reasoning tokens before the JSON answer.
+        max_tokens:4000,
         messages:[{role:'system',content:system},{role:'user',content:user}],
         response_format:schema
           ? {type:'json_schema',json_schema:{name:schemaName,schema,strict:true}}
