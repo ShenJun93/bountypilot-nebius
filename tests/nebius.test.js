@@ -146,7 +146,7 @@ test('page liveness uses Tavily text and ignores a model quote that is not on th
 
   const open=await checkLiveness({url:'https://example.com/b4'},{tavily:page('Life After Code. Registration is now open. Submissions open on October 5th.')});
   assert.equal(open.status,'OPEN');
-  assert.match(open.evidence[0].quote,/Registration is now open/);
+  assert.equal(open.evidence[0].quote,'Registration is now open.');
 
   const honest=fakeLlm({status:'OPEN',quote:'We are accepting entries until the 30th'});
   const byModel=await checkLiveness({url:'https://example.com/b5'},{tavily:page(`${filler} We are accepting entries until the 30th. ${filler}`),llm:honest});
@@ -174,7 +174,8 @@ test('triage skips a listing whose GitHub issue is already assigned',async()=>{
   const listing='[Bounty $1,500] Improve div_no_nan accuracy. Submit a pull request on GitHub. No interview. https://github.com/acme/app/issues/58228';
   const out=await converse({utterance:'is this worth building?',listing,workspace:'w'},call);
   assert.match(out.reply,/claimed/);
-  assert.ok(out.cards.some((c)=>c.type==='liveness' && c.status==='CLAIMED'));
+  assert.equal(out.cards[0].type,'liveness','the deciding check is shown first');
+  assert.equal(out.cards[0].status,'CLAIMED');
   const queue=await store.forWorkspace('w').list();
   assert.equal(queue[0].status,'skipped');
   assert.equal(queue[0].sourceUrl,'https://github.com/acme/app/issues/58228');

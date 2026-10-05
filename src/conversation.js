@@ -108,6 +108,8 @@ export async function converse({utterance='',title='',listing='',workspace='defa
     const live=sourceUrl ? data(await noWorkspace('check_liveness',{url:sourceUrl,title:name})) : null;
     if (live) cards.push(livenessCard(live,name));
     if (live && blockingLiveness.has(live.status)) {
+      // The source check decided this one, so its card goes first.
+      cards.unshift(cards.pop());
       await call('set_opportunity_status',{id:saved.id,status:'skipped'});
       reply=`I'd skip this one: it looks ${live.status.toLowerCase()} at the source. ${live.summary} I saved it as skipped.`;
       return {intent:intent.kind,reply:reply.replace(/\s+/g,' ').trim(),cards,trace};

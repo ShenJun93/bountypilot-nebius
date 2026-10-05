@@ -30,11 +30,19 @@ export const URL_IN_TEXT=/https?:\/\/[^\s<>"')\]]+/i;
 function quoteAround(text,match) {
   const i=match.index ?? 0;
   const before=text.lastIndexOf('.',i-1);
-  let start=before>=0 && i-before<200 ? before+1 : Math.max(0,i-80);
   const after=text.indexOf('.',i+match[0].length);
-  let end=after>=0 && after-i<240 ? after+1 : Math.min(text.length,i+match[0].length+80);
-  while (start>0 && /\S/.test(text[start-1])) start-=1;
-  while (end<text.length && /\S/.test(text[end])) end+=1;
+  let start;
+  let end;
+  if (before>=0 && i-before<200) start=before+1;
+  else {
+    start=Math.max(0,i-80);
+    while (start>0 && /\S/.test(text[start-1])) start-=1;
+  }
+  if (after>=0 && after-i<240) end=after+1;
+  else {
+    end=Math.min(text.length,i+match[0].length+80);
+    while (end<text.length && /\S/.test(text[end])) end+=1;
+  }
   return text.slice(start,end).replace(/\s+/g,' ').trim();
 }
 
